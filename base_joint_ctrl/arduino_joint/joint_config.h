@@ -34,7 +34,7 @@
 #define __JOINT_CONFIG_H
 #include <Arduino.h>
 /***电机驱动 Emm42_V3.6.x***/
-//点击反转标志 127最高挡位速度反转：7F|80=FF,90挡位速度反转：5A|80=DA,00挡位速度反转：00|80=80
+//电机反转标志 127最高挡位速度反转：7F|80=FF,90挡位速度反转：5A|80=DA,00挡位速度反转：00|80=80
 #define MOTOR_ROLL_OVER 0x80
 //串口位置控制 0xE0FD {1} {2} {3} 1为速度转向 {2}{3}为脉冲数，3200个脉冲(0x0C80)为360°
 #define MOTOR_DEGREE 0xFD
@@ -64,4 +64,6 @@
 uint8_t initDevice(void);
 //复位电机
 uint8_t reload(uint8_t motor);
+
+uint32_t getMotorPulse(uint8_t motor);
 #endif
