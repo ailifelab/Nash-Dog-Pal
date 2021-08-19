@@ -9,43 +9,59 @@
 #include <stdint.h>
 #include "joint_config.h"
 
+struct _motor {
+  short enPin;
+  short stpPin;
+  short dirPin;
+}
+motor1 = {5, 6, 7},
+motor2 = {1, 2, 3};
+
 void setup() {
   initDevice();
-
+  pinMode(motor1.enPin , OUTPUT);  digitalWrite(motor1.enPin , LOW);  // initialize the En pin as an output
+  pinMode(motor1.stpPin, OUTPUT);  digitalWrite(motor1.stpPin, LOW);  // initialize the Stp pin as an output
+  pinMode(motor1.dirPin, OUTPUT);  digitalWrite(motor1.dirPin, LOW);  // initialize the Dir pin as an output
 }
 
 uint16_t motorPositionCode = 0x0;
-
+long i = 0;  bool cntDir = false;
 void loop() {
-  // put your main code here, to run repeatedly:
-  Serial.println("roll!");
-  byte command[5] = {NUM_MOTOR_SERIAL3_1, MOTOR_DEGREE, 0x64, 0x03, 0x20};
-  Serial3.write(command, 5);
-//  int sizeBuf = Serial3.available();
-//  if (sizeBuf > 0) {
-//    for (int i = 0; i < sizeBuf; i++) {
-//      byte data = Serial3.read();
-//      Serial.print("returned:");
-//      Serial.println(data, HEX);
-//    }
-//  }
-  delay(6000);
-  Serial.println("back!");
-  uint32_t pulse = 0;
-  pulse = getMotorPulse(NUM_MOTOR_SERIAL3_1);
-  if (pulse < 3201) {
-    Serial.print("motor pulse:");
-    Serial.println(pulse, DEC);
-    if (pulse > 0) {
-      byte command[5] = {NUM_MOTOR_SERIAL3_1, MOTOR_DEGREE, 0x64 | 0x80, pulse >> 8, pulse - (pulse >> 8 << 8)};
-      Serial.print(command[0], HEX);
-      Serial.print(command[1], HEX);
-      Serial.print(command[2], HEX);
-      Serial.print(command[3], HEX);
-      Serial.println(command[4], HEX);
-
-      Serial3.write(command, 5);
-    }
-    delay(6000);
+  double motorDegree = getMotorDegree(NUM_MOTOR_SERIAL3_1);
+  runDegree(90, motor1);
+  if (cntDir) {
+    digitalWrite(motor1.dirPin, LOW);
+    cntDir = false;
+  } else {
+    digitalWrite(motor1.dirPin, HIGH);
+    cntDir = true;
+    //切换方向转动
   }
+  delay(2000);
+}
+
+void runDegree(float degree, _motor motor) {
+  long times = degree * 3200 / 360;
+  //  Serial.print("Times:");
+  //  Serial.print(times);
+  //  Serial.print("\r\n");
+  for (i = 0; i < times; i++) {
+    runOne(motor);
+  }
+}
+/**
+   发送一个脉冲
+*/
+void runOne(_motor motor) {
+  /**********************************************************
+  ***  高低电平的时间间隔，即脉冲时间的一半(控制电机转动速度)
+  **********************************************************/
+  int delayTime = 100;
+  delayMicroseconds(delayTime); //600us
+  /**********************************************************
+  ***  取反D6（Stp引脚）
+  **********************************************************/
+  digitalWrite(motor.stpPin, !digitalRead(motor.stpPin));
+  digitalWrite(motor.stpPin, !digitalRead(motor.stpPin));
+  delayMicroseconds(delayTime); //600us
 }

@@ -1,4 +1,11 @@
 #include "joint_config.h"
+//清除缓冲区
+void cleanBuffer() {
+  while (Serial.read() >= 0);
+}
+void cleanBuffer3() {
+  while (Serial3.read() >= 0);
+}
 
 uint8_t initDevice(void) {
   //控制台输出信号
@@ -7,7 +14,7 @@ uint8_t initDevice(void) {
   Serial3.begin(38400, SERIAL_8N1);
 
   //  reload(NUM_MOTOR_SERIAL3_2);
-
+  cleanBuffer();
   return 0;
 }
 
@@ -59,11 +66,11 @@ uint32_t getMotorPulse(uint8_t motor) {
     if (motor == data) {
       Serial3.readBytes(startCode, 2);
       uint16_t motorPositionCode = (startCode[0] << 8) + startCode[1];
-      uint32_t pulse=((double)motorPositionCode ) / 65535 * 3200;
-      Serial.println(startCode[0],HEX);
-      Serial.println(startCode[1],HEX);
-      Serial.println(motorPositionCode,DEC);
-      Serial.println(pulse,DEC);
+      uint32_t pulse = ((double)motorPositionCode ) / 65535 * 3200;
+      Serial.println(startCode[0], HEX);
+      Serial.println(startCode[1], HEX);
+      Serial.println(motorPositionCode, DEC);
+      Serial.println(pulse, DEC);
       return pulse;
     } else {
       Serial.print("waste data:");
@@ -71,4 +78,38 @@ uint32_t getMotorPulse(uint8_t motor) {
       return 0;
     }
   }
+}
+
+void motorRunAngle(uint8_t motor, uint32_t pulse, byte motorRollOverTag) {
+  //  byte command[5] = {motor, MOTOR_DEGREE, 0x5A | motorRollOverTag, pulse >> 8, pulse << 8 >> 8};
+  byte command[5] = {NUM_MOTOR_SERIAL3_1, MOTOR_DEGREE, 0x5A | 0x80, pulse >> 8, pulse - (pulse >> 8 << 8)};
+  Serial3.write(command, 5);
+}
+
+//获取编码器值
+uint16_t getMotorEncoderCode(uint8_t motor) {
+  //组装命令
+  byte bufferData[2] = {motor, MOTOR_ENCODER};
+  uint16_t resultData = 0;
+  //清空缓存
+  cleanBuffer3();
+  //发起请求
+  Serial3.write(bufferData, 2);
+  //获取缓冲区数据
+  if (Serial3.available() > 0) {
+    uint8_t dataHead = Serial3.read();
+    if (motor == dataHead) {
+      resultData = resultData | Serial3.read() << 8 | Serial3.read();
+    }
+  }
+  //清空缓存
+  cleanBuffer3();
+  return resultData;
+}
+
+
+//获取编码器对应角度
+double getMotorDegree(uint8_t motor){
+  uint16_t encoderCode=getMotorEncoderCode(motor);
+  return (double)(encoderCode/65535)*360;
 }

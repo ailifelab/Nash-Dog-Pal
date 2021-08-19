@@ -66,4 +66,11 @@ uint8_t initDevice(void);
 uint8_t reload(uint8_t motor);
 
 uint32_t getMotorPulse(uint8_t motor);
+
+void motorRunAngle(uint8_t motor, uint32_t pulse, byte motorRollOverTag);
+
+//获取编码器值
+uint16_t getMotorEncoderCode(uint8_t motor);
+//获取编码器对应角度
+double getMotorDegree(uint8_t motor);
 #endif
