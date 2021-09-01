@@ -28,7 +28,7 @@ uint16_t motorPositionCode = 0x0;
 long i = 0;  bool cntDir = false;
 void loop() {
   double motorDegree = getMotorDegree(NUM_MOTOR_SERIAL3_1);
-  runDegree(90, motor1);
+  runDegree(90*5, motor1);
   if (cntDir) {
     digitalWrite(motor1.dirPin, LOW);
     cntDir = false;
@@ -37,7 +37,7 @@ void loop() {
     cntDir = true;
     //切换方向转动
   }
-  delay(2000);
+  delay(5000);
 }
 
 void runDegree(float degree, _motor motor) {
@@ -56,7 +56,7 @@ void runOne(_motor motor) {
   /**********************************************************
   ***  高低电平的时间间隔，即脉冲时间的一半(控制电机转动速度)
   **********************************************************/
-  int delayTime = 100;
+  int delayTime = 10;
   delayMicroseconds(delayTime); //600us
   /**********************************************************
   ***  取反D6（Stp引脚）
