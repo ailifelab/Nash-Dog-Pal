@@ -8,27 +8,38 @@
 */
 #include <stdint.h>
 #include "joint_config.h"
-
+#include "JointStepMotor.h"
 struct _motor {
   short enPin;
   short stpPin;
   short dirPin;
 }
-motor1 = {5, 6, 7},
-motor2 = {1, 2, 3};
+motor1 = {10, 11, 12},
+motor2 = {2, 3, 4};
+
+
+JointStepMotor stepper1(2, 3, 4);
+JointStepMotor stepper2(6, 7, 8);
 
 void setup() {
   initDevice();
-  pinMode(motor1.enPin , OUTPUT);  digitalWrite(motor1.enPin , LOW);  // initialize the En pin as an output
-  pinMode(motor1.stpPin, OUTPUT);  digitalWrite(motor1.stpPin, LOW);  // initialize the Stp pin as an output
-  pinMode(motor1.dirPin, OUTPUT);  digitalWrite(motor1.dirPin, LOW);  // initialize the Dir pin as an output
+
 }
 
 uint16_t motorPositionCode = 0x0;
 long i = 0;  bool cntDir = false;
 void loop() {
+  Serial.println(stepper1.getEnPin() + stepper1.getDirPin() + stepper1.getStpPin());
+  Serial.println(stepper2.getEnPin() + stepper2.getDirPin() + stepper2.getStpPin());
+
+//  stepper1.rotate(360*20.0f, false);
+//  stepper2.rotate(360*20.0f, false);
+  delay(10000);
+}
+
+void motorRun() {
   double motorDegree = getMotorDegree(NUM_MOTOR_SERIAL3_1);
-  runDegree(90*5, motor1);
+  runDegree(90 * 5, motor1);
   if (cntDir) {
     digitalWrite(motor1.dirPin, LOW);
     cntDir = false;
