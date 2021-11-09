@@ -9,6 +9,10 @@
 #include <stdint.h>
 #include "joint_config.h"
 #include "JointStepMotor.h"
+#include "MultiStepper.h"
+#include "AccelStepper.h"
+#define MAX_SPEED       6400
+#define MAX_ACCEL       500
 struct _motor {
   short enPin;
   short stpPin;
@@ -18,8 +22,13 @@ motor1 = {10, 11, 12},
 motor2 = {2, 3, 4};
 
 
-JointStepMotor stepper1(2, 3, 4);
-JointStepMotor stepper2(6, 7, 8);
+//JointStepMotor stepper1(motor1.enPin, motor1.stpPin, motor1.dirPin);
+JointStepMotor stepper2(motor2.enPin, motor2.stpPin, motor2.dirPin);
+
+//AccelStepper Xaxis(AccelStepper::DRIVER, motor1.stpPin, motor1.dirPin);
+//AccelStepper Yaxis(AccelStepper::DRIVER, motor2.stpPin, motor2.dirPin);
+//AccelStepper Zaxis(1, 5, 9); // pin 5 = step, pin 8 = direction
+MultiStepper steppers;
 
 void setup() {
   initDevice();
@@ -29,11 +38,10 @@ void setup() {
 uint16_t motorPositionCode = 0x0;
 long i = 0;  bool cntDir = false;
 void loop() {
-  Serial.println(stepper1.getEnPin() + stepper1.getDirPin() + stepper1.getStpPin());
-  Serial.println(stepper2.getEnPin() + stepper2.getDirPin() + stepper2.getStpPin());
-
-//  stepper1.rotate(360*20.0f, false);
-//  stepper2.rotate(360*20.0f, false);
+  //  Xaxis.runSpeed();
+  //  Yaxis.runSpeed();
+  //  stepper1.rotate(180.0f, false);
+//  stepper2.rotate(360.0f, false);
   delay(10000);
 }
 
