@@ -1,20 +1,41 @@
 #include <Servo.h>
 #include <stdlib.h>
+// Arduino Wire library is required if I2Cdev I2CDEV_ARDUINO_WIRE implementation
+// is used in I2Cdev.h
+#include <Wire.h>
 #include "MultiStepper.h"
 #include "AccelStepper.h"
+#include "I2Cdev.h"
+#include "MPU6050.h"
 #include "Jt808Util.h"
+//IO定义
+//舵机
 #define SERVO_PIN 3
+//左侧电机：使能
 #define STEP_MOTOR_EN_L 19
+//左侧电机：pwm
 #define STEP_MOTOR_STP_L 9
+//左侧电机：方向
 #define STEP_MOTOR_DIR_L 8
+//右侧电机：使能
 #define STEP_MOTOR_EN_R 22
+//右侧电机：pwm
 #define STEP_MOTOR_STP_R 10
+//右侧电机：方向
 #define STEP_MOTOR_DIR_R 7
+//前led灯pwm
 #define STEP_LIGHT_FRONT 11
+//后led灯左侧pwm
 #define STEP_LIGHT_BACK_LEFT 5
+//后led灯右侧pwm
 #define STEP_LIGHT_BACK_RIGHT 6
-#define BTN_UP 2
+//按钮：后退
+#define BTN_UP 12
+//按钮：前进
 #define BTN_DOWN 4
+//mpu6050指示灯
+//#define LED_PIN 13
+//最大速度
 #define MAX_SPEED       6400
 #define MAX_ACCEL       500
 //通讯标识 标识 校验码 外设类型编号 命令类型 用户数据 标识
@@ -41,6 +62,8 @@ const byte CODE_LIGHT_FRONT = byte(0x51);
 const byte CODE_LIGHT_BACK = byte(0x52);
 // 命令类型:按钮动作
 const byte CODE_BTN = byte(0x53);
+// 消息类型：陀螺仪信息
+const byte CODE_TICK_GYRO = byte(0x54);
 //轮距
 const short SHAFT_LENGTH = 151;
 //车轮直径
@@ -48,18 +71,28 @@ const short WHEEL_PERIMETER = 82;
 //传动比
 const short GEAR_RATIO = 20;
 byte *pcMsg = new byte[10] { byte(0x00), byte(0x00), byte(0xfa) };
+
+//jt/808部标工具
+Jt808Util jt808Util;
 //舵机
 Servo myservo;
 //左电机
 AccelStepper stepper_l(AccelStepper::DRIVER, STEP_MOTOR_STP_L, STEP_MOTOR_DIR_L);
 //右电机
 AccelStepper stepper_r(AccelStepper::DRIVER, STEP_MOTOR_STP_R, STEP_MOTOR_DIR_R);
+//陀螺仪
+// class default I2C address is 0x68
+// specific I2C addresses may be passed as a parameter here
+// AD0 low = 0x68 (default for InvenSense evaluation board)
+// AD0 high = 0x69
+MPU6050 accelgyro;
+
 //缓存命令
 byte * cmdCache = (byte *)calloc(10, sizeof(byte));
 int cacheIndex = 0;
 //串口命令接收完成标识
 bool cmdEndTag = false;
-Jt808Util jt808Util;
+
 //灯闪烁目标时间
 unsigned long aimTime = 0L;
 //左侧灯闪烁标记
@@ -69,9 +102,8 @@ bool backRightLightFlash = false;
 //按键触发时间
 long btnUpStartTime = 0;
 long btnDownStartTime = 0;
-bool btnUpSent = false;
-bool btnDownSent = false;
 int lightBrightness = 0;
+long lastCheckTime = 0;
 /**
    设置灯闪烁
 */
@@ -190,12 +222,87 @@ void checkButton() {
   }
 }
 
+byte * short2bytes(int16_t num) {
+  byte * bytes = (byte *)calloc(2, sizeof(byte));
+  bytes[0] = byte (num >> 8);
+  bytes[1] = byte (num);
+  return bytes;
+}
+
+int16_t bytes2short(byte* bytes, int size) {
+  int16_t iRetVal = bytes[1];
+  iRetVal |= ((bytes[0] << 8) & 0xFF00);
+  return iRetVal;
+}
+
+/**
+   获取坐标
+*/
+byte * getSensorInfo(int& realSize) {
+  realSize = 12;
+  int16_t ax, ay, az;
+  int16_t gx, gy, gz;
+  // read raw accel/gyro measurements from device
+  byte * datainfo = (byte *)calloc(realSize, sizeof(byte));
+  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  byte * axbytes = short2bytes(ax);
+  datainfo[0] = axbytes[0];
+  datainfo[1] = axbytes[1];
+  free(axbytes);
+  byte * aybytes = short2bytes(ay);
+  datainfo[2] = aybytes[0];
+  datainfo[3] = aybytes[1];
+  free(aybytes);
+  byte * azbytes = short2bytes(az);
+  datainfo[4] = azbytes[0];
+  datainfo[5] = azbytes[1];
+  free(azbytes);
+  byte * gxbytes = short2bytes(gx);
+  datainfo[6] = gxbytes[0];
+  datainfo[7] = gxbytes[1];
+  free(gxbytes);
+  byte * gybytes = short2bytes(gy);
+  datainfo[8] = gybytes[0];
+  datainfo[9] = gybytes[1];
+  free(gybytes);
+  byte * gzbytes = short2bytes(gz);
+  datainfo[10] = gzbytes[0];
+  datainfo[11] = gzbytes[1];
+  byte *msgData = jt808Util.generateMsgCode(CODE_TYPE, datainfo, realSize);
+  free(gzbytes);
+
+  free(datainfo);
+  return msgData;
+}
+/**
+   上报坐标
+*/
+void uploadSensorInfo() {
+  long now = millis();
+  if (abs(now - lastCheckTime) > 2000) {
+    int realSize = 0;
+    byte *msgData = getSensorInfo(realSize);
+    for (int i = 0; i < realSize; i++) {
+      if (i == 3) {
+        Serial.write(CODE_TICK_GYRO);
+      }
+      Serial.write(msgData[i]);
+    }
+    free(msgData);
+    lastCheckTime = now;
+  }
+}
+
 /**
    初始化
 */
 void setup() {
+  //舵机初始化
   myservo.attach(SERVO_PIN);
-  Serial.begin(115200, SERIAL_8N1); //连接到串行端口，波特率为115200
+  //连接到串行端口，波特率为115200
+  Serial.begin(115200, SERIAL_8N1);
+  // join I2C bus (I2Cdev library doesn't do this automatically)
+  Wire.begin();
   //左侧电机设置
   stepper_l.setEnablePin(STEP_MOTOR_EN_L);
   stepper_l.enableOutputs();
@@ -216,8 +323,12 @@ void setup() {
   digitalWrite(BTN_UP, HIGH);
   pinMode(BTN_DOWN, INPUT);
   digitalWrite(BTN_DOWN, HIGH);
+  //  pinMode(LED_PIN, OUTPUT);
   myservo.write(0);
-  breathLed(STEP_LIGHT_FRONT, 50, 10);
+  //Initializing mpu6050
+  accelgyro.initialize();
+  //turn light on
+  breathLed(STEP_LIGHT_FRONT, 100, 10);
   //ready
   Serial.write(CODE_FLAG);
   Serial.write(0x4A);
@@ -397,6 +508,18 @@ void loop() {
           }
 
           break;
+        case CODE_TICK_GYRO:
+          realSize = 0;
+          msgData = getSensorInfo(realSize);
+          for (int i = 0; i < realSize; i++) {
+            if (i == 3) {
+              Serial.write(CODE_TICK_GYRO);
+            }
+            Serial.write(msgData[i]);
+          }
+          free(msgData);
+
+          break;
       }
       if (infoDataPointer != NULL) {
         free(infoDataPointer);
@@ -412,6 +535,7 @@ void loop() {
   checkButton();
   //控制灯闪烁
   lightFlash();
+  uploadSensorInfo();
   //控制电机运转
   stepper_l.run();
   stepper_r.run();

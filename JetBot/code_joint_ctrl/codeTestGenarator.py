@@ -25,6 +25,8 @@ CODE_LIGHT_FRONT = 0x51
 CODE_LIGHT_BACK = 0x52
 # 命令类型:按钮动作
 CODE_BTN = 0x53
+# 命令类型:获取坐标
+CODE_TICK_GYRO = 0x54;
 # 初始化命令行
 data = np.array([0x7E, 0x00], dtype="uint8")
 # 输入外设类型编号，不需要输入
@@ -54,6 +56,7 @@ print("7.获取电机状态")
 print("8.调节LED亮度")
 print("9.调节后部LED亮度")
 print("10.按钮动作")
+print("11.获取坐标")
 n = int(input("选择："))
 if 1 == n:
     data = np.append(data, CODE_CMD_SERVO)
@@ -76,6 +79,8 @@ elif 9 == n:
     print("7EXXFA52KKSS7E")
 elif 10 == n:
     data = np.append(data, CODE_BTN)
+elif 11 == n:
+    data = np.append(data, CODE_TICK_GYRO)
 # 输入要发送的数据命令
 m = input("输入用户数据:")
 n = bytearray.fromhex(m)
