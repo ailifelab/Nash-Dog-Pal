@@ -1,0 +1,10 @@
+build/
+install/
+log/
+**/.idea
+.idea
+**/.pycharm
+.pycharm
+**/.vscode
+.vscode
+
